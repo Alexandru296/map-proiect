@@ -7,7 +7,7 @@ Proiect individual la disciplina Metode avansate de programare, anul universitar
 - **Nume:** Costea Alexandru-Mihai
 - **Grupa:** 1.1
 - **Marca:** 715678
-- **Tema:** 1 - Agenda de contacte
+- **Tema:** 1 - agenda de contacte
 
 ## Descriere
 
