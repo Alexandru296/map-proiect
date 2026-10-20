@@ -1,3 +1,4 @@
+[![CI](https://github.com/Alexandru296/map-proiect/actions/workflows/ci.yml/badge.svg)](https://github.com/Alexandru296/map-proiect/actions/workflows/ci.yml)
 # Agenda de contacte
 
 Proiect individual la disciplina Metode avansate de programare, anul universitar 2026-2027.
