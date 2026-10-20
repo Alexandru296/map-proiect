@@ -15,7 +15,7 @@ Adauga,sterge si sorteaza contactele
 
 ## Tehnologii
 
-C++20 cu cpp-httplib si nlohmann/json
+ C++20 cu cpp-httplib si nlohmann/json
 
 ## Rulare
 
