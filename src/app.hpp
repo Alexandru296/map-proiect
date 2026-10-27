@@ -2,10 +2,14 @@
 // Pure logic lives here so it can be unit tested without starting a server.
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <mutex>
+#include <optional>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -13,7 +17,32 @@ namespace map_project {
 
 inline constexpr const char* kAppName = "map-project";
 inline constexpr const char* kAppVersion = "0.1.0";
+/// Structura unui contact din agendă (Tema 1)
+struct Contact {
+    int id;
+    std::string name;
+    std::string email;
+    std::string phone;
+    std::string category;
 
+    nlohmann::json ToJson() const {
+        return {
+            {"id", id},
+            {"name", name},
+            {"email", email},
+            {"phone", phone},
+            {"category", category}
+        };
+    }
+};
+
+
+inline std::string ToLower(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    return str;
+}
 /// Reads an environment variable, falling back when it is missing or empty.
 inline std::string Env(const char* key, const std::string& fallback) {
     const char* value = std::getenv(key);
@@ -73,8 +102,8 @@ inline std::string HomePage() {
 <html lang="ro"><head><meta charset="utf-8"><title>)") + kAppName + R"(</title></head>
 <body>
 <h1>)" + kAppName + R"(</h1>
-<p>Autor: NUME PRENUME, grupa GRUPA</p>
-<p>Tema: NUMARUL TEMEI</p>
+<p>Autor: Costea Alexandru Mihai, grupa 1.1</p>
+<p>Tema: 1</p>
 <p>Versiune: )" + kAppVersion + ", commit " + Env("APP_COMMIT", "dev") + R"(</p>
 </body></html>)";
 }
