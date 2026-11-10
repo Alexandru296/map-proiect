@@ -5,7 +5,7 @@
 #include <iostream>
 #include <string>
 #include <cctype>
-
+#include<optional>
 #include <httplib.h>
 #include <nlohmann/json.hpp>
 
@@ -68,7 +68,7 @@ int main() {
             int digits = 0;
             size_t start = (phone.length() > 0 && phone[0] == '+') ? 1 : 0;
             for (size_t i = start; i < phone.length(); i++) {
-                if (!std::isdigit(phone[i])) valid_phone = false;
+                if (!std::isdigit(static_cast<unsigned char>(phone[i]))) valid_phone = false;
                 else digits++;
             }
             if (!valid_phone || digits != 10 || phone.length() != (start + 10)) {
@@ -105,13 +105,55 @@ int main() {
         } 
             catch (const std::exception& e) {
             res.status = 400;
-            res.set_content(ErrorBody("bad_request", "invalid JSON payload").dump(), "application/json; charset=utf-8");
+            res.set_content(ErrorBody("validation", "invalid JSON payload").dump(), "application/json; charset=utf-8");
         }
+    });
+     // GET /contacts - list contacts, optionally filtered by category and searched by name
+    server.Get("/contacts", [&](const httplib::Request& req, httplib::Response& res) {
+        std::optional<std::string> category_filter = std::nullopt;
+        std::optional<std::string> query_filter = std::nullopt;
+
+        if (req.has_param("category")) category_filter = req.get_param_value("category");
+        if (req.has_param("q")) query_filter = req.get_param_value("q");
+
+        auto contacts = store.GetContacts(category_filter, query_filter);
+        nlohmann::json j_array = nlohmann::json::array();
+        for (const auto& c : contacts) {
+            j_array.push_back(c.ToJson());
+        }
+        res.set_content(j_array.dump(), "application/json; charset=utf-8");
+    });
+    
+    // GET /contacts/{id} - return one contact
+    server.Get(R"(/contacts/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {
+        int id = std::stoi(req.matches[1]);
+        auto contact = store.GetContactById(id);
+        if (contact) {
+            res.set_content(contact->ToJson().dump(), "application/json; charset=utf-8");
+        } else {
+            res.status = 404;
+            res.set_content(ErrorBody("not_found", "contact not found").dump(), "application/json; charset=utf-8");
+        }
+    });
+
+    // delete one contact
+    server.Delete(R"(/contacts/(\d+))", [&](const httplib::Request& req, httplib::Response& res) {
+        int id = std::stoi(req.matches[1]);
+        if (store.DeleteContact(id)) {
+            res.status = 204;
+        } else {
+            res.status = 404;
+            res.set_content(ErrorBody("not_found", "contact not found").dump(), "application/json; charset=utf-8");
+        }
+    });
+     // count contacts per category
+    server.Get("/stats", [&](const httplib::Request&, httplib::Response& res) {
+        res.set_content(store.GetStats().dump(), "application/json; charset=utf-8");
     });
     
     
     server.set_error_handler([](const httplib::Request&, httplib::Response& response) {
-        if (response.status == 404) {
+        if (response.status == 404 && response.body.empty()) {
             response.set_content(ErrorBody("not_found", "route does not exist").dump(),
                                  "application/json; charset=utf-8");
         }
