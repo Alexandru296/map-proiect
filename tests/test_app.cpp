@@ -63,14 +63,14 @@ TEST_CASE("home page mentions the application name") {
     CHECK(HomePage().find(kAppName) != std::string::npos);
 }
 TEST_CASE("rejects_phone_number_with_invalid_length") {
-    std::string short_phone = "0712345"; // are doar 7 cifre
+    std::string short_phone = "0712345"; // only 7 digits
     const auto body = ErrorBody("invalid_phone", "phone number must contain exactly 10 digits");
 
     CHECK(short_phone.length() != 10);
     CHECK(body["error"] == "invalid_phone");
 }
 
-// Test 2 (Validare 2): Numele contactului nu poate fi un câmp gol
+// Test 2 (validation): the contact name cannot be empty
 TEST_CASE("rejects_empty_contact_name") {
     std::string empty_name = "";
     const auto body = ErrorBody("bad_request", "contact name cannot be empty");
@@ -79,7 +79,7 @@ TEST_CASE("rejects_empty_contact_name") {
     CHECK(body["message"] == "contact name cannot be empty");
 }
 
-// Test 3 (Validare 3): Telefonul conține litere sau caractere nepermise
+// Test 3 (validation): the phone number contains letters or invalid characters
 TEST_CASE("rejects_phone_number_with_letters") {
     std::string invalid_phone = "0712abc345";
     bool has_letters = std::any_of(invalid_phone.begin(), invalid_phone.end(), ::isalpha);
@@ -89,7 +89,7 @@ TEST_CASE("rejects_phone_number_with_letters") {
     CHECK(body["error"] == "invalid_input");
 }
 
-// Test 4 (Caz fericit): Verifică adăugarea corectă a unui contact valid
+// Test 4 (happy path): a valid contact is accepted
 TEST_CASE("accepts_valid_contact_data") {
     std::string name = "Popescu Ion";
     std::string phone = "0712345678";
@@ -97,7 +97,7 @@ TEST_CASE("accepts_valid_contact_data") {
     CHECK(!name.empty());
     CHECK(phone.length() == 10);
 }
-// Test 5 (Eroare): Lipsa numărului de telefon din cerere
+// Test 5 (error): the request is missing the phone number
 TEST_CASE("rejects_payload_missing_phone_number") {
     const auto body = ErrorBody("bad_request", "missing required field: phone");
     
@@ -105,21 +105,21 @@ TEST_CASE("rejects_payload_missing_phone_number") {
     CHECK(body["message"] == "missing required field: phone");
 }
 
-// Test 6 (Eroare): Număr de telefon duplicat (deja existent în agendă)
+// Test 6 (error): duplicate phone number (already in the contact book)
 TEST_CASE("rejects_duplicate_phone_number_with_409") {
     const auto body = ErrorBody("conflict", "phone number already exists");
     
     CHECK(body["error"] == "conflict");
 }
 
-// Test 7 (Eroare): Ștergerea unui contact care nu există trebuie să dea eroare 404
+// Test 7 (error): deleting a contact that does not exist returns 404
 TEST_CASE("returns_404_when_deleting_nonexistent_contact") {
     const auto body = ErrorBody("not_found", "contact not found");
     
     CHECK(body["error"] == "not_found");
 }
 
-// Test 8 (Eroare): Format de email invalid (lipsă simbol @)
+// Test 8 (error): invalid email format (missing @)
 TEST_CASE("rejects_invalid_email_format") {
     std::string invalid_email = "ion.popescu_la_gmail.com";
     const auto body = ErrorBody("invalid_input", "invalid email format");
@@ -128,7 +128,7 @@ TEST_CASE("rejects_invalid_email_format") {
     CHECK(body["error"] == "invalid_input");
 }
 
-// Test 9 (Succes): Generatorul de ID-uri alocă valori unice pentru contacte noi
+// Test 9 (success): the id generator assigns unique ids to new contacts
 TEST_CASE("store_assigns_unique_ids_to_new_contacts") {
     Store store;
     int id_contact1 = store.TakeNextId();
@@ -139,7 +139,7 @@ TEST_CASE("store_assigns_unique_ids_to_new_contacts") {
     CHECK(id_contact2 == 2);
 }
 
-// Test 10 (Succes): Datele pentru actualizarea unui contact sunt valide
+// Test 10 (success): the data for updating a contact is valid
 TEST_CASE("accepts_contact_update_with_valid_data") {
     std::string original_name = "Ion";
     std::string updated_name = "Ion Popescu";
