@@ -62,88 +62,164 @@ TEST_CASE("reset returns to one") {
 TEST_CASE("home page mentions the application name") {
     CHECK(HomePage().find(kAppName) != std::string::npos);
 }
-TEST_CASE("rejects_phone_number_with_invalid_length") {
-    std::string short_phone = "0712345"; // only 7 digits
-    const auto body = ErrorBody("invalid_phone", "phone number must contain exactly 10 digits");
+// ---------- own tests: contact book ----------
 
-    CHECK(short_phone.length() != 10);
-    CHECK(body["error"] == "invalid_phone");
+// helper that adds a contact with a valid phone number
+static Contact AddTestContact(Store& store, const std::string& name, const std::string& email,
+                              const std::string& category) {
+    return store.AddContact(name, email, "0722334455", category);
 }
 
-// Test 2 (validation): the contact name cannot be empty
-TEST_CASE("rejects_empty_contact_name") {
-    std::string empty_name = "";
-    const auto body = ErrorBody("bad_request", "contact name cannot be empty");
-
-    CHECK(empty_name.empty());
-    CHECK(body["message"] == "contact name cannot be empty");
-}
-
-// Test 3 (validation): the phone number contains letters or invalid characters
-TEST_CASE("rejects_phone_number_with_letters") {
-    std::string invalid_phone = "0712abc345";
-    bool has_letters = std::any_of(invalid_phone.begin(), invalid_phone.end(), ::isalpha);
-    const auto body = ErrorBody("invalid_input", "phone number contains invalid characters");
-
-    CHECK(has_letters == true);
-    CHECK(body["error"] == "invalid_input");
-}
-
-// Test 4 (happy path): a valid contact is accepted
-TEST_CASE("accepts_valid_contact_data") {
-    std::string name = "Popescu Ion";
-    std::string phone = "0712345678";
-
-    CHECK(!name.empty());
-    CHECK(phone.length() == 10);
-}
-// Test 5 (error): the request is missing the phone number
-TEST_CASE("rejects_payload_missing_phone_number") {
-    const auto body = ErrorBody("bad_request", "missing required field: phone");
-    
-    CHECK(body["error"] == "bad_request");
-    CHECK(body["message"] == "missing required field: phone");
-}
-
-// Test 6 (error): duplicate phone number (already in the contact book)
-TEST_CASE("rejects_duplicate_phone_number_with_409") {
-    const auto body = ErrorBody("conflict", "phone number already exists");
-    
-    CHECK(body["error"] == "conflict");
-}
-
-// Test 7 (error): deleting a contact that does not exist returns 404
-TEST_CASE("returns_404_when_deleting_nonexistent_contact") {
-    const auto body = ErrorBody("not_found", "contact not found");
-    
-    CHECK(body["error"] == "not_found");
-}
-
-// Test 8 (error): invalid email format (missing @)
-TEST_CASE("rejects_invalid_email_format") {
-    std::string invalid_email = "ion.popescu_la_gmail.com";
-    const auto body = ErrorBody("invalid_input", "invalid email format");
-
-    CHECK(invalid_email.find('@') == std::string::npos);
-    CHECK(body["error"] == "invalid_input");
-}
-
-// Test 9 (success): the id generator assigns unique ids to new contacts
-TEST_CASE("store_assigns_unique_ids_to_new_contacts") {
+TEST_CASE("added contacts get ids starting at one") {
     Store store;
-    int id_contact1 = store.TakeNextId();
-    int id_contact2 = store.TakeNextId();
+    const auto first = AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+    const auto second = AddTestContact(store, "Ion Popescu", "ion@example.com", "family");
 
-    CHECK(id_contact1 != id_contact2);
-    CHECK(id_contact1 == 1);
-    CHECK(id_contact2 == 2);
+    CHECK(first.id == 1);
+    CHECK(second.id == 2);
 }
 
-// Test 10 (success): the data for updating a contact is valid
-TEST_CASE("accepts_contact_update_with_valid_data") {
-    std::string original_name = "Ion";
-    std::string updated_name = "Ion Popescu";
+TEST_CASE("added contact keeps all fields as written") {
+    Store store;
+    const auto c = store.AddContact("Ana Pop", "Ana@Example.com", "+0722334455", "friends");
 
-    CHECK(original_name != updated_name);
-    CHECK(!updated_name.empty());
+    CHECK(c.name == "Ana Pop");
+    CHECK(c.email == "Ana@Example.com");
+    CHECK(c.phone == "+0722334455");
+    CHECK(c.category == "friends");
+}
+
+TEST_CASE("contact json contains all fields") {
+    Store store;
+    const auto json = AddTestContact(store, "Ana Pop", "ana@example.com", "work").ToJson();
+
+    CHECK(json["id"] == 1);
+    CHECK(json["name"] == "Ana Pop");
+    CHECK(json["email"] == "ana@example.com");
+    CHECK(json["phone"] == "0722334455");
+    CHECK(json["category"] == "work");
+}
+
+TEST_CASE("duplicate email is detected regardless of case") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+
+    CHECK(store.EmailExists("ana@example.com"));
+    CHECK(store.EmailExists("Ana@Example.COM"));
+}
+
+TEST_CASE("unknown email is not reported as duplicate") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+
+    CHECK_FALSE(store.EmailExists("maria@example.com"));
+}
+
+TEST_CASE("get contact by id finds an existing contact") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+
+    const auto found = store.GetContactById(1);
+    REQUIRE(found.has_value());
+    CHECK(found->name == "Ana Pop");
+}
+
+TEST_CASE("get contact by id returns nothing for a missing id") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+
+    CHECK_FALSE(store.GetContactById(999).has_value());
+}
+
+TEST_CASE("delete removes an existing contact") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+
+    CHECK(store.DeleteContact(1));
+    CHECK_FALSE(store.GetContactById(1).has_value());
+}
+
+TEST_CASE("delete returns false for a missing contact") {
+    Store store;
+
+    CHECK_FALSE(store.DeleteContact(42));
+}
+
+TEST_CASE("ids are not reused after delete") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+    store.DeleteContact(1);
+
+    const auto next = AddTestContact(store, "Ion Popescu", "ion@example.com", "family");
+    CHECK(next.id == 2);
+}
+
+TEST_CASE("list is sorted by name, then by id") {
+    Store store;
+    AddTestContact(store, "Maria", "maria@example.com", "work");  // id 1
+    AddTestContact(store, "Ana", "ana1@example.com", "work");     // id 2
+    AddTestContact(store, "Ana", "ana2@example.com", "family");   // id 3
+
+    const auto list = store.GetContacts(std::nullopt, std::nullopt);
+    REQUIRE(list.size() == 3);
+    CHECK(list[0].id == 2);
+    CHECK(list[1].id == 3);
+    CHECK(list[2].id == 1);
+}
+
+TEST_CASE("list can be filtered by category") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+    AddTestContact(store, "Ion Popescu", "ion@example.com", "family");
+
+    const auto list = store.GetContacts(std::string("family"), std::nullopt);
+    REQUIRE(list.size() == 1);
+    CHECK(list[0].name == "Ion Popescu");
+}
+
+TEST_CASE("search by name ignores case") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+    AddTestContact(store, "Ion Popescu", "ion@example.com", "family");
+
+    const auto list = store.GetContacts(std::nullopt, std::string("ANA"));
+    REQUIRE(list.size() == 1);
+    CHECK(list[0].name == "Ana Pop");
+}
+
+TEST_CASE("category and search are applied together") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+    AddTestContact(store, "Ana Ionescu", "ana.i@example.com", "friends");
+    AddTestContact(store, "Ion Popescu", "ion@example.com", "work");
+
+    const auto list = store.GetContacts(std::string("work"), std::string("ana"));
+    REQUIRE(list.size() == 1);
+    CHECK(list[0].name == "Ana Pop");
+}
+
+TEST_CASE("stats count contacts per category") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+    AddTestContact(store, "Ion Popescu", "ion@example.com", "work");
+    AddTestContact(store, "Maria", "maria@example.com", "family");
+
+    const auto stats = store.GetStats();
+    CHECK(stats["total"] == 3);
+    CHECK(stats["by_category"]["work"] == 2);
+    CHECK(stats["by_category"]["family"] == 1);
+    CHECK(stats["by_category"]["friends"] == 0);
+    CHECK(stats["by_category"]["other"] == 0);
+}
+
+TEST_CASE("reset clears contacts and restarts ids") {
+    Store store;
+    AddTestContact(store, "Ana Pop", "ana@example.com", "work");
+    AddTestContact(store, "Ion Popescu", "ion@example.com", "family");
+
+    store.Reset();
+
+    CHECK(store.GetContacts(std::nullopt, std::nullopt).empty());
+    CHECK(store.GetStats()["total"] == 0);
+    CHECK(AddTestContact(store, "Maria", "maria@example.com", "other").id == 1);
 }
