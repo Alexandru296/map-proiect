@@ -12,7 +12,7 @@ Proiect individual la disciplina Metode avansate de programare, anul universitar
 
 ## Descriere
 
-Adauga,sterge si sorteaza contactele
+Serviciu web pentru o agenda de contacte: adaugare, listare cu filtrare dupa categorie si cautare dupa nume, stergere si statistici pe categorii.
 
 ## Tehnologii
 
@@ -48,8 +48,16 @@ cmake --build build -j
 | `/version` | GET | Versiunea si commit-ul din care a fost construita imaginea |
 | `/` | GET | Pagina de prezentare |
 | `/reset` | POST | Goleste datele din memorie |
-| [ruta temei] | [metoda] | [descriere] |
+| `/contacts` | POST | Adauga un contact; 201 si contactul creat, cu id |
+| `/contacts` | GET | Listeaza contactele, filtrate dupa `category` si `q`, ordonate dupa nume |
+| `/contacts/{id}` | GET | Intoarce un contact sau 404 |
+| `/contacts/{id}` | DELETE | Sterge un contact; 204 sau 404 |
+| `/stats` | GET | Numarul total de contacte si numarul pe fiecare categorie |
 
 ## Decizii de implementare
 
-[Doua-trei decizii tehnice pe care le-ati luat si motivul fiecareia.]
+- **Emailul se compara fara majuscule, dar se pastreaza cum a fost scris.** La verificarea de duplicat ambele adrese sunt trecute prin `ToLower`, pentru ca `Ana@Example.com` si `ana@example.com` sunt aceeasi adresa. In raspuns se intoarce forma scrisa de utilizator.
+
+- **Logica sta in `app.hpp`, separat de server.** Clasa `Store` (adaugare, cautare, filtrare, stergere, statistici) nu depinde de HTTP, deci poate fi testata direct cu doctest, fara sa pornesc serverul. `main.cpp` doar leaga rutele de aceste functii.
+
+- **Contactele sunt pastrate intr-un `std::vector`, protejat de un `std::mutex`.** Serverul poate trata mai multe cereri in paralel, iar mutex-ul impiedica doua cereri sa modifice lista in acelasi timp.
