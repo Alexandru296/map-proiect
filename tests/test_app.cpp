@@ -223,3 +223,41 @@ TEST_CASE("reset clears contacts and restarts ids") {
     CHECK(store.GetStats()["total"] == 0);
     CHECK(AddTestContact(store, "Maria", "maria@example.com", "other").id == 1);
 }
+
+// ---------- own tests: admin authentication ----------
+
+TEST_CASE("base64 decodes a valid value") {
+    // "YWRtaW46c2VjcmV0" is the Base64 form of "admin:secret"
+    const auto decoded = Base64Decode("YWRtaW46c2VjcmV0");
+    REQUIRE(decoded.has_value());
+    CHECK(*decoded == "admin:secret");
+}
+
+TEST_CASE("base64 rejects invalid input") {
+    CHECK_FALSE(Base64Decode("abc").has_value());   // wrong length
+    CHECK_FALSE(Base64Decode("a$cd").has_value());  // invalid character
+}
+
+TEST_CASE("valid basic credentials are accepted") {
+    CHECK(IsAuthorized("Basic YWRtaW46c2VjcmV0", "admin", "secret"));
+}
+
+TEST_CASE("wrong password is rejected") {
+    // "YWRtaW46d3Jvbmc=" is "admin:wrong"
+    CHECK_FALSE(IsAuthorized("Basic YWRtaW46d3Jvbmc=", "admin", "secret"));
+}
+
+TEST_CASE("missing or malformed authorization header is rejected") {
+    CHECK_FALSE(IsAuthorized("", "admin", "secret"));
+    CHECK_FALSE(IsAuthorized("Bearer YWRtaW46c2VjcmV0", "admin", "secret"));
+    CHECK_FALSE(IsAuthorized("Basic !!!!", "admin", "secret"));
+}
+
+TEST_CASE("access is denied when credentials are not configured") {
+    CHECK_FALSE(IsAuthorized("Basic YWRtaW46c2VjcmV0", "", ""));
+}
+
+TEST_CASE("password may contain a colon") {
+    // "YWRtaW46c2U6Y3JldA==" is "admin:se:cret"
+    CHECK(IsAuthorized("Basic YWRtaW46c2U6Y3JldA==", "admin", "se:cret"));
+}

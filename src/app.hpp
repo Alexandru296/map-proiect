@@ -192,6 +192,62 @@ inline nlohmann::json ErrorBody(const std::string& code, const std::string& mess
     return {{"error", code}, {"message", message}};
 }
 
+/// Decodes a standard Base64 string. Returns nothing if the input is not valid Base64.
+inline std::optional<std::string> Base64Decode(const std::string& input) {
+    static const std::string kAlphabet =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    if (input.size() % 4 != 0) {
+        return std::nullopt;
+    }
+    std::string output;
+    int buffer = 0;
+    int bits = 0;
+    size_t padding = 0;
+    for (size_t i = 0; i < input.size(); i++) {
+        const char ch = input[i];
+        if (ch == '=') {
+            // padding is allowed only in the last two positions
+            if (i < input.size() - 2) return std::nullopt;
+            padding++;
+            continue;
+        }
+        if (padding > 0) return std::nullopt;  // no data after padding
+        const auto pos = kAlphabet.find(ch);
+        if (pos == std::string::npos) return std::nullopt;
+        buffer = (buffer << 6) | static_cast<int>(pos);
+        bits += 6;
+        if (bits >= 8) {
+            bits -= 8;
+            output.push_back(static_cast<char>((buffer >> bits) & 0xFF));
+        }
+    }
+    return output;
+}
+
+/// Checks an HTTP Basic "Authorization" header against the expected credentials.
+/// Access is always denied when the expected user or password is empty (not configured).
+inline bool IsAuthorized(const std::string& header, const std::string& expected_user,
+                         const std::string& expected_password) {
+    if (expected_user.empty() || expected_password.empty()) {
+        return false;
+    }
+    const std::string prefix = "Basic ";
+    if (header.size() <= prefix.size() || header.compare(0, prefix.size(), prefix) != 0) {
+        return false;
+    }
+    const auto decoded = Base64Decode(header.substr(prefix.size()));
+    if (!decoded) {
+        return false;
+    }
+    // the user name ends at the first ':'; the password may contain ':'
+    const auto colon = decoded->find(':');
+    if (colon == std::string::npos) {
+        return false;
+    }
+    return decoded->substr(0, colon) == expected_user &&
+           decoded->substr(colon + 1) == expected_password;
+}
+
 inline std::string HomePage() {
     return std::string(R"(<!DOCTYPE html>
 <html lang="ro"><head><meta charset="utf-8"><title>)") + kAppName + R"(</title></head>
