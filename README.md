@@ -53,6 +53,7 @@ cmake --build build -j
 | `/contacts/{id}` | GET | Intoarce un contact sau 404 |
 | `/contacts/{id}` | DELETE | Sterge un contact; 204 sau 404 |
 | `/stats` | GET | Numarul total de contacte si numarul pe fiecare categorie |
+| `/admin/stats` | GET | Statistici globale; cere HTTP Basic cu `ADMIN_USER` / `ADMIN_PASSWORD` |
 
 ## Decizii de implementare
 
