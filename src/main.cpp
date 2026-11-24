@@ -150,6 +150,22 @@ int main() {
     server.Get("/stats", [&](const httplib::Request&, httplib::Response& res) {
         res.set_content(store.GetStats().dump(), "application/json; charset=utf-8");
     });
+
+    // GET /admin/stats - global statistics, protected by HTTP Basic authentication
+    server.Get("/admin/stats", [&](const httplib::Request& req, httplib::Response& res) {
+        const std::string header = req.get_header_value("Authorization");
+        // credentials come only from the environment; no default values
+        if (!IsAuthorized(header, Env("ADMIN_USER", ""), Env("ADMIN_PASSWORD", ""))) {
+            res.status = 401;
+            res.set_header("WWW-Authenticate", "Basic realm=\"admin\"");
+            res.set_content(ErrorBody("unauthorized", "valid credentials are required").dump(),
+                            "application/json; charset=utf-8");
+            return;
+        }
+        auto stats = store.GetStats();
+        stats["uptime_seconds"] = UptimeSeconds(started_at);
+        res.set_content(stats.dump(), "application/json; charset=utf-8");
+    });
     
     
     server.set_error_handler([](const httplib::Request&, httplib::Response& response) {
