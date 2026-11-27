@@ -43,6 +43,28 @@ inline std::string ToLower(std::string str) {
     });
     return str;
 }
+/// Maximum length of a contact name, in characters (parameter L of the theme).
+inline constexpr std::size_t kMaxNameLength = 50;
+
+/// Counts characters, not bytes, in a UTF-8 string.
+/// Letters such as "ș" or "ă" take two bytes in UTF-8 but count as one character.
+inline std::size_t Utf8Length(const std::string& text) {
+    std::size_t count = 0;
+    for (unsigned char byte : text) {
+        // continuation bytes look like 10xxxxxx; every other byte starts a new character
+        if ((byte & 0xC0) != 0x80) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/// A name is valid when it has between 1 and kMaxNameLength characters.
+inline bool IsValidNameLength(const std::string& name) {
+    const std::size_t length = Utf8Length(name);
+    return length >= 1 && length <= kMaxNameLength;
+}
+
 /// Reads an environment variable, falling back when it is missing or empty.
 inline std::string Env(const char* key, const std::string& fallback) {
     const char* value = std::getenv(key);

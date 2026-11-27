@@ -261,3 +261,30 @@ TEST_CASE("password may contain a colon") {
     // "YWRtaW46c2U6Y3JldA==" is "admin:se:cret"
     CHECK(IsAuthorized("Basic YWRtaW46c2U6Y3JldA==", "admin", "se:cret"));
 }
+
+// ---------- own tests: name length ----------
+
+TEST_CASE("utf8 length counts characters, not bytes") {
+    CHECK(Utf8Length("Ana") == 3);
+    // "\xC8\x98" is the letter "Ș" in UTF-8: two bytes, one character
+    CHECK(Utf8Length("\xC8\x98tefan") == 6);
+}
+
+TEST_CASE("name of exactly 50 characters is accepted") {
+    CHECK(IsValidNameLength(std::string(50, 'a')));
+}
+
+TEST_CASE("name of 51 characters is rejected") {
+    CHECK_FALSE(IsValidNameLength(std::string(51, 'a')));
+}
+
+TEST_CASE("empty name is rejected") {
+    CHECK_FALSE(IsValidNameLength(""));
+}
+
+TEST_CASE("name of 50 characters with a diacritic is accepted") {
+    // 49 letters plus "ș" ("\xC8\x99"): 50 characters, but 51 bytes
+    const std::string name = std::string(49, 'a') + "\xC8\x99";
+    CHECK(name.size() == 51);
+    CHECK(IsValidNameLength(name));
+}

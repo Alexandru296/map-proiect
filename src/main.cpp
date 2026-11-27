@@ -50,8 +50,8 @@ int main() {
             std::string phone = body["phone"];
             std::string category = body["category"];
             
-            // validate name length
-            if (name.empty() || name.length() > 50) {
+            // validate name length (1 to 50 characters, counted in UTF-8)
+            if (!IsValidNameLength(name)) {
                 res.status = 400;
                 res.set_content(ErrorBody("validation", "invalid name length").dump(), "application/json; charset=utf-8");
                 return;
