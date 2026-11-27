@@ -65,6 +65,19 @@ inline bool IsValidNameLength(const std::string& name) {
     return length >= 1 && length <= kMaxNameLength;
 }
 
+/// An email is valid when it contains exactly one '@', has text before it
+/// and at least one '.' somewhere after it.
+inline bool IsValidEmail(const std::string& email) {
+    const auto at_pos = email.find('@');
+    if (at_pos == std::string::npos || at_pos == 0) {
+        return false;  // no '@', or nothing before it
+    }
+    if (email.find('@', at_pos + 1) != std::string::npos) {
+        return false;  // more than one '@'
+    }
+    return email.find('.', at_pos + 1) != std::string::npos;
+}
+
 /// Reads an environment variable, falling back when it is missing or empty.
 inline std::string Env(const char* key, const std::string& fallback) {
     const char* value = std::getenv(key);

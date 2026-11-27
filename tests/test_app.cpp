@@ -288,3 +288,28 @@ TEST_CASE("name of 50 characters with a diacritic is accepted") {
     CHECK(name.size() == 51);
     CHECK(IsValidNameLength(name));
 }
+
+// ---------- own tests: email format ----------
+
+TEST_CASE("valid email is accepted") {
+    CHECK(IsValidEmail("ana@example.com"));
+    CHECK(IsValidEmail("ana.pop@mail.example.ro"));
+}
+
+TEST_CASE("email without @ is rejected") {
+    CHECK_FALSE(IsValidEmail("ana.example.com"));
+}
+
+TEST_CASE("email with two @ is rejected") {
+    CHECK_FALSE(IsValidEmail("ana@pop@example.com"));
+}
+
+TEST_CASE("email with nothing before @ is rejected") {
+    CHECK_FALSE(IsValidEmail("@example.com"));
+}
+
+TEST_CASE("email without a dot after @ is rejected") {
+    CHECK_FALSE(IsValidEmail("ana@examplecom"));
+    // a dot before '@' does not count
+    CHECK_FALSE(IsValidEmail("ana.pop@example"));
+}

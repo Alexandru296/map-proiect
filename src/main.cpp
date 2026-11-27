@@ -76,17 +76,8 @@ int main() {
                 res.set_content(ErrorBody("validation", "invalid phone format").dump(), "application/json; charset=utf-8");
                 return;
             }
-            // validate email format
-            size_t at_pos = email.find('@');
-            size_t last_at_pos = email.rfind('@');
-            bool email_valid = (at_pos != std::string::npos && at_pos == last_at_pos && at_pos > 0);
-            if (email_valid) {
-                size_t dot_pos = email.find('.', at_pos);
-                if (dot_pos == std::string::npos || dot_pos == at_pos + 1) {
-                    email_valid = false;
-                }
-            }
-            if (!email_valid) {
+            // validate email format: one '@', text before it, a '.' after it
+            if (!IsValidEmail(email)) {
                 res.status = 400;
                 res.set_content(ErrorBody("validation", "invalid email format").dump(), "application/json; charset=utf-8");
                 return;
